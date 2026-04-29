@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-app-engine",
+  "name": "App Engine",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Run embedded apps in Obsidian with persistent storage over notes and note-relative app paths.",
+  "author": "fuzi",
+  "isDesktopOnly": false
+}
