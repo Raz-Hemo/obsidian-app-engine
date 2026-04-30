@@ -1,0 +1,2 @@
+Using the plugin at .obsidian/plugins/obsidian-app-engine, build a single-page html app, with inline CSS and javascript, that runs inside Obsidian and uses a single "state.json" file to save its state, under Apps/chemistry/{index.html,state.json}. Use obsidian's background color #1e1e1e and a dark theme. the app should allow you to draw molecules/reactions in a modern UI <you can provide an image of an existing UI>. then you can save these molecules and search by substructure (SMILE sequence).
+in that same folder add a file chemistry.md with the app-engine block.
