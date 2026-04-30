@@ -31,6 +31,11 @@ The plugin only supports single-page html files with inline CSS and JS. complex 
 5. Turn off `Restricted mode` if needed.
 6. Click `Reload plugins` or restart Obsidian.
 7. Enable `App Engine`.
+8. Build your apps! i recommend a harness like codex or claude code, set to the root vault folder. example prompt:
+
+```
+Using the plugin at .obsidian/plugins/obsidian-app-engine, build a single-page html app, with inline CSS and javascript, that runs inside Obsidian and uses a single "Apps/todolist/state.json" file to save its state. The app itself should allow the user to add recurring tasks, that have a name, recurrence interval and a list of user-defined tags. The tasks will be sorted by their due date, and there should be a button next to each one that sets the last completed time to today. Clicking the button multiple times should be idempotent, i.e. set the date to <today> + <interval>. Use obsidian's background color #1e1e1e and a dark theme.
+```
 
 ## App embeds
 
