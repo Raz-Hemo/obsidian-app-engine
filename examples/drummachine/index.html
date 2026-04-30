@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drum Machine</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #1e1e1e;
+      --panel: #262626;
+      --panel-soft: #2d2d2d;
+      --panel-strong: #343434;
+      --text: #eeeeee;
+      --muted: #a8a8a8;
+      --line: #404040;
+      --line-soft: #343434;
+      --accent: #54c6a2;
+      --accent-2: #efb75a;
+      --danger: #d86d6d;
+      --shadow: 0 16px 44px rgba(0, 0, 0, 0.32);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .sidebar {
+      min-width: 0;
+      border-left: 1px solid var(--line);
+      background: #232323;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .topbar,
+    .toolbar,
+    .field-row,
+    .sidebar-head,
+    .pattern-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .topbar {
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 16px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      border-radius: 7px;
+      padding: 0 13px;
+      background: var(--panel-soft);
+      color: var(--text);
+      border: 1px solid var(--line);
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      background: var(--panel-strong);
+      border-color: #535353;
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #10231d;
+      font-weight: 700;
+    }
+
+    .button.warning {
+      background: #3c3325;
+      border-color: #6b5532;
+      color: #f1c983;
+    }
+
+    .button.danger {
+      color: #f1aaaa;
+      background: #382626;
+      border-color: #6d3d3d;
+    }
+
+    .icon-button {
+      width: 38px;
+      min-width: 38px;
+      padding: 0;
+    }
+
+    input,
+    select {
+      min-height: 38px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: #191919;
+      color: var(--text);
+      padding: 0 11px;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(84, 198, 162, 0.18);
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    label span {
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .pattern-name {
+      flex: 1;
+      min-width: 180px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .transport {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 14px;
+    }
+
+    .field-row {
+      flex-wrap: wrap;
+    }
+
+    .field-row label {
+      min-width: 112px;
+    }
+
+    .field-row input[type="number"],
+    .field-row select {
+      width: 112px;
+    }
+
+    .sequencer-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .sequencer {
+      position: relative;
+      min-width: 720px;
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr);
+    }
+
+    .track-labels {
+      display: grid;
+      grid-template-rows: repeat(5, 58px);
+      background: #222;
+      border-right: 1px solid var(--line);
+      z-index: 3;
+    }
+
+    .track-label {
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line-soft);
+      color: #d6d6d6;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .grid-area {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-rows: repeat(5, 58px);
+    }
+
+    .track-row {
+      display: grid;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .step {
+      position: relative;
+      min-width: 30px;
+      border-right: 1px solid var(--line-soft);
+      background: #242424;
+      color: transparent;
+    }
+
+    .step:nth-child(4n + 1) {
+      background: #292929;
+    }
+
+    .step::after {
+      content: "";
+      position: absolute;
+      inset: 15px;
+      border-radius: 50%;
+      border: 1px solid #4d4d4d;
+      background: #202020;
+      transition: transform 100ms ease, background 100ms ease, border-color 100ms ease;
+    }
+
+    .step.on::after {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(84, 198, 162, 0.2);
+      transform: scale(1.08);
+    }
+
+    .step.playing::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(239, 183, 90, 0.13);
+      pointer-events: none;
+    }
+
+    .playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent-2);
+      box-shadow: 0 0 16px rgba(239, 183, 90, 0.65);
+      transform: translateX(0);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .step-numbers {
+      display: grid;
+      grid-column: 2;
+      min-width: 720px;
+      height: 34px;
+      border-top: 1px solid var(--line);
+      background: #222;
+    }
+
+    .step-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      border-right: 1px solid var(--line-soft);
+      font-size: 11px;
+    }
+
+    .scroll-shell {
+      overflow-x: auto;
+      scrollbar-color: #555 #222;
+    }
+
+    .sidebar-head {
+      justify-content: space-between;
+    }
+
+    .search {
+      width: 100%;
+    }
+
+    .pattern-list {
+      display: grid;
+      gap: 8px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .pattern-card {
+      width: 100%;
+      text-align: left;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .pattern-card:hover {
+      border-color: #575757;
+      background: #2c2c2c;
+    }
+
+    .pattern-card.active {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(84, 198, 162, 0.35);
+    }
+
+    .pattern-card strong {
+      overflow-wrap: anywhere;
+    }
+
+    .pattern-meta {
+      color: var(--muted);
+      font-size: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .empty {
+      min-height: 120px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .status {
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%) translateY(20px);
+      opacity: 0;
+      background: #111;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 13px;
+      box-shadow: var(--shadow);
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 880px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        flex-wrap: wrap;
+      }
+
+      .main {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1>Drum Machine</h1>
+          <p class="muted">Hat, kick, snare, crash, and ride patterns saved in this vault.</p>
+        </div>
+        <div class="toolbar">
+          <button class="button primary" id="playButton" type="button">Play</button>
+          <button class="button" id="stopButton" type="button">Stop</button>
+          <button class="button warning" id="clearButton" type="button">Clear</button>
+        </div>
+      </div>
+
+      <section class="transport" aria-label="Pattern controls">
+        <div class="field-row">
+          <label>
+            <span>Pattern name</span>
+            <input class="pattern-name" id="nameInput" type="text" maxlength="80" placeholder="Pattern name">
+          </label>
+          <label>
+            <span>BPM</span>
+            <input id="bpmInput" type="number" min="40" max="240" step="1">
+          </label>
+          <label>
+            <span>Length</span>
+            <select id="lengthInput">
+              <option value="8">8 steps</option>
+              <option value="12">12 steps</option>
+              <option value="16">16 steps</option>
+              <option value="24">24 steps</option>
+              <option value="32">32 steps</option>
+            </select>
+          </label>
+        </div>
+        <div class="toolbar">
+          <button class="button primary" id="saveButton" type="button">Save Pattern</button>
+          <button class="button" id="newButton" type="button">New</button>
+          <button class="button" id="duplicateButton" type="button">Duplicate</button>
+          <button class="button danger" id="deleteButton" type="button">Delete</button>
+        </div>
+        <div class="status" id="storageStatus"></div>
+      </section>
+
+      <section class="sequencer-wrap" aria-label="Step sequencer">
+        <div class="scroll-shell">
+          <div class="sequencer" id="sequencer">
+            <div class="track-labels" id="trackLabels"></div>
+            <div class="grid-area">
+              <div class="steps" id="steps"></div>
+              <div class="playhead" id="playhead"></div>
+            </div>
+            <div></div>
+            <div class="step-numbers" id="stepNumbers"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2>Patterns</h2>
+        <span class="muted" id="patternCount">0</span>
+      </div>
+      <input class="search" id="searchInput" type="search" placeholder="Search patterns">
+      <div class="pattern-list" id="patternList"></div>
+      <div class="empty" id="emptyState">No patterns match your search.</div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORE_KEY = "app-engine:drummachine";
+    const APP_ENGINE_NAMESPACE = "obsidian-app-engine";
+    const CONTEXT_EVENT = `${APP_ENGINE_NAMESPACE}:context`;
+    const REQUEST_EVENT = `${APP_ENGINE_NAMESPACE}:request`;
+    const RESPONSE_EVENT = `${APP_ENGINE_NAMESPACE}:response`;
+    const TRACKS = [
+      { id: "hat", name: "Hat" },
+      { id: "kick", name: "Kick" },
+      { id: "snare", name: "Snare" },
+      { id: "crash", name: "Crash" },
+      { id: "ride", name: "Ride" },
+    ];
+    const DEFAULT_LENGTH = 16;
+    const DEFAULT_BPM = 120;
+
+    const state = {
+      adapter: null,
+      store: createEmptyStore(),
+      pattern: createPattern("New Pattern"),
+      isDirty: false,
+      isPlaying: false,
+      currentStep: -1,
+      scheduledStep: -1,
+      nextStepTime: 0,
+      schedulerTimer: null,
+      audioContext: null,
+      saveTimer: null,
+    };
+
+    const els = {
+      playButton: document.getElementById("playButton"),
+      stopButton: document.getElementById("stopButton"),
+      clearButton: document.getElementById("clearButton"),
+      saveButton: document.getElementById("saveButton"),
+      newButton: document.getElementById("newButton"),
+      duplicateButton: document.getElementById("duplicateButton"),
+      deleteButton: document.getElementById("deleteButton"),
+      nameInput: document.getElementById("nameInput"),
+      bpmInput: document.getElementById("bpmInput"),
+      lengthInput: document.getElementById("lengthInput"),
+      trackLabels: document.getElementById("trackLabels"),
+      steps: document.getElementById("steps"),
+      stepNumbers: document.getElementById("stepNumbers"),
+      playhead: document.getElementById("playhead"),
+      patternList: document.getElementById("patternList"),
+      searchInput: document.getElementById("searchInput"),
+      emptyState: document.getElementById("emptyState"),
+      patternCount: document.getElementById("patternCount"),
+      storageStatus: document.getElementById("storageStatus"),
+      toast: document.getElementById("toast"),
+    };
+
+    init();
+
+    async function init() {
+      bindEvents();
+      state.adapter = await createPersistenceAdapter();
+      state.store = await state.adapter.loadStore();
+      const selected = findCurrentPattern() || state.store.patterns[0] || createPattern("Default House", defaultTracks(DEFAULT_LENGTH));
+      if (!state.store.patterns.length) {
+        state.store.patterns.push(selected);
+        state.store.currentPatternId = selected.id;
+        await saveStore();
+      }
+      loadPattern(selected.id);
+      els.storageStatus.textContent = state.adapter.kind === "app-engine"
+        ? `Saved to ${state.adapter.path}`
+        : "Saved in this browser";
+    }
+
+    function bindEvents() {
+      els.playButton.addEventListener("click", togglePlayback);
+      els.stopButton.addEventListener("click", stopPlayback);
+      els.clearButton.addEventListener("click", clearPattern);
+      els.saveButton.addEventListener("click", saveCurrentPattern);
+      els.newButton.addEventListener("click", newPattern);
+      els.duplicateButton.addEventListener("click", duplicatePattern);
+      els.deleteButton.addEventListener("click", deleteCurrentPattern);
+      els.searchInput.addEventListener("input", renderPatternList);
+      els.nameInput.addEventListener("input", () => {
+        state.pattern.name = els.nameInput.value;
+        markDirty();
+      });
+      els.bpmInput.addEventListener("input", () => {
+        state.pattern.bpm = clamp(Number.parseInt(els.bpmInput.value, 10) || DEFAULT_BPM, 40, 240);
+        markDirty();
+      });
+      els.lengthInput.addEventListener("change", () => {
+        resizePattern(Number.parseInt(els.lengthInput.value, 10) || DEFAULT_LENGTH);
+        markDirty();
+        render();
+      });
+    }
+
+    function render() {
+      els.nameInput.value = state.pattern.name;
+      els.bpmInput.value = state.pattern.bpm;
+      els.lengthInput.value = state.pattern.length;
+      renderSequencer();
+      renderPatternList();
+      updateTransport();
+    }
+
+    function renderSequencer() {
+      els.trackLabels.innerHTML = "";
+      els.steps.innerHTML = "";
+      els.stepNumbers.innerHTML = "";
+      const columns = `repeat(${state.pattern.length}, minmax(42px, 1fr))`;
+      els.stepNumbers.style.gridTemplateColumns = columns;
+
+      for (const track of TRACKS) {
+        const label = document.createElement("div");
+        label.className = "track-label";
+        label.textContent = track.name;
+        els.trackLabels.appendChild(label);
+
+        const row = document.createElement("div");
+        row.className = "track-row";
+        row.style.gridTemplateColumns = columns;
+
+        for (let index = 0; index < state.pattern.length; index += 1) {
+          const step = document.createElement("button");
+          step.className = `step ${state.pattern.tracks[track.id][index] ? "on" : ""} ${index === state.currentStep ? "playing" : ""}`;
+          step.type = "button";
+          step.title = `${track.name} step ${index + 1}`;
+          step.textContent = `${track.name} ${index + 1}`;
+          step.addEventListener("click", () => toggleStep(track.id, index));
+          row.appendChild(step);
+        }
+
+        els.steps.appendChild(row);
+      }
+
+      for (let index = 0; index < state.pattern.length; index += 1) {
+        const number = document.createElement("div");
+        number.className = "step-number";
+        number.textContent = String(index + 1);
+        els.stepNumbers.appendChild(number);
+      }
+
+      positionPlayhead();
+    }
+
+    function renderPatternList() {
+      const query = els.searchInput.value.trim().toLowerCase();
+      const patterns = [...state.store.patterns]
+        .filter((pattern) => pattern.name.toLowerCase().includes(query))
+        .sort((left, right) => right.updatedAt - left.updatedAt || left.name.localeCompare(right.name));
+
+      els.patternList.innerHTML = "";
+      els.emptyState.style.display = patterns.length ? "none" : "grid";
+      els.patternCount.textContent = `${state.store.patterns.length}`;
+
+      for (const pattern of patterns) {
+        const button = document.createElement("button");
+        button.className = `pattern-card ${pattern.id === state.pattern.id ? "active" : ""}`;
+        button.type = "button";
+        button.addEventListener("click", async () => {
+          await saveCurrentPattern({ silent: true });
+          loadPattern(pattern.id);
+        });
+
+        const name = document.createElement("strong");
+        name.textContent = pattern.name || "Untitled Pattern";
+        const meta = document.createElement("div");
+        meta.className = "pattern-meta";
+        meta.textContent = `${pattern.bpm} BPM | ${pattern.length} steps`;
+
+        button.append(name, meta);
+        els.patternList.appendChild(button);
+      }
+    }
+
+    function toggleStep(trackId, index) {
+      state.pattern.tracks[trackId][index] = state.pattern.tracks[trackId][index] ? 0 : 1;
+      markDirty();
+      renderSequencer();
+      if (!state.isPlaying) {
+        playSound(trackId, getAudioContext().currentTime);
+      }
+    }
+
+    function resizePattern(nextLength) {
+      const length = clamp(nextLength, 8, 32);
+      state.pattern.length = length;
+      for (const track of TRACKS) {
+        const steps = Array.isArray(state.pattern.tracks[track.id]) ? state.pattern.tracks[track.id] : [];
+        state.pattern.tracks[track.id] = Array.from({ length }, (_, index) => steps[index] ? 1 : 0);
+      }
+      if (state.currentStep >= length) {
+        state.currentStep = -1;
+      }
+    }
+
+    function clearPattern() {
+      for (const track of TRACKS) {
+        state.pattern.tracks[track.id] = Array(state.pattern.length).fill(0);
+      }
+      markDirty();
+      renderSequencer();
+    }
+
+    async function saveCurrentPattern(options = {}) {
+      const clean = normalizePattern(state.pattern);
+      clean.name = clean.name || "Untitled Pattern";
+      clean.updatedAt = Date.now();
+      const index = state.store.patterns.findIndex((pattern) => pattern.id === clean.id);
+      if (index >= 0) {
+        state.store.patterns[index] = clean;
+      } else {
+        state.store.patterns.push(clean);
+      }
+      state.store.currentPatternId = clean.id;
+      state.pattern = clonePattern(clean);
+      state.isDirty = false;
+      await saveStore();
+      render();
+      if (!options.silent) {
+        showToast("Pattern saved");
+      }
+    }
+
+    function newPattern() {
+      stopPlayback();
+      state.pattern = createPattern(`Pattern ${state.store.patterns.length + 1}`);
+      state.store.currentPatternId = state.pattern.id;
+      state.isDirty = true;
+      render();
+    }
+
+    function duplicatePattern() {
+      stopPlayback();
+      const copy = clonePattern(state.pattern);
+      copy.id = createId();
+      copy.name = `${copy.name || "Pattern"} Copy`;
+      copy.createdAt = Date.now();
+      copy.updatedAt = Date.now();
+      state.pattern = copy;
+      state.store.patterns.push(clonePattern(copy));
+      state.store.currentPatternId = copy.id;
+      state.isDirty = false;
+      saveStore();
+      render();
+      showToast("Pattern duplicated");
+    }
+
+    async function deleteCurrentPattern() {
+      const existing = state.store.patterns.find((pattern) => pattern.id === state.pattern.id);
+      if (!existing) {
+        newPattern();
+        return;
+      }
+      if (!confirm(`Delete "${existing.name}"?`)) {
+        return;
+      }
+      stopPlayback();
+      state.store.patterns = state.store.patterns.filter((pattern) => pattern.id !== existing.id);
+      const fallback = state.store.patterns[0] || createPattern("New Pattern");
+      if (!state.store.patterns.length) {
+        state.store.patterns.push(fallback);
+      }
+      state.store.currentPatternId = fallback.id;
+      await saveStore();
+      loadPattern(fallback.id);
+      showToast("Pattern deleted");
+    }
+
+    function loadPattern(id) {
+      const pattern = state.store.patterns.find((item) => item.id === id) || state.store.patterns[0];
+      state.pattern = clonePattern(pattern || createPattern("New Pattern"));
+      state.store.currentPatternId = state.pattern.id;
+      state.isDirty = false;
+      state.currentStep = -1;
+      state.scheduledStep = -1;
+      render();
+      saveStore();
+    }
+
+    function togglePlayback() {
+      if (state.isPlaying) {
+        stopPlayback();
+      } else {
+        startPlayback();
+      }
+    }
+
+    async function startPlayback() {
+      const audio = getAudioContext();
+      if (audio.state === "suspended") {
+        await audio.resume();
+      }
+      state.isPlaying = true;
+      state.currentStep = -1;
+      state.scheduledStep = -1;
+      state.nextStepTime = audio.currentTime + 0.05;
+      els.playhead.style.opacity = "1";
+      scheduler();
+      state.schedulerTimer = window.setInterval(scheduler, 25);
+      updateTransport();
+    }
+
+    function stopPlayback() {
+      state.isPlaying = false;
+      state.currentStep = -1;
+      state.scheduledStep = -1;
+      if (state.schedulerTimer) {
+        window.clearInterval(state.schedulerTimer);
+        state.schedulerTimer = null;
+      }
+      els.playhead.style.opacity = "0";
+      renderSequencer();
+      updateTransport();
+    }
+
+    function scheduler() {
+      const audio = getAudioContext();
+      const lookAhead = 0.12;
+      while (state.nextStepTime < audio.currentTime + lookAhead) {
+        const nextStep = (state.scheduledStep + 1) % state.pattern.length;
+        const scheduledTime = state.nextStepTime;
+        scheduleStep(nextStep, scheduledTime);
+        state.scheduledStep = nextStep;
+        window.setTimeout(() => {
+          if (!state.isPlaying) {
+            return;
+          }
+          state.currentStep = nextStep;
+          renderSequencer();
+        }, Math.max(0, (scheduledTime - audio.currentTime) * 1000));
+        const secondsPerStep = 60 / clamp(state.pattern.bpm, 40, 240) / 4;
+        state.nextStepTime += secondsPerStep;
+      }
+    }
+
+    function scheduleStep(stepIndex, time) {
+      for (const track of TRACKS) {
+        if (state.pattern.tracks[track.id][stepIndex]) {
+          playSound(track.id, time);
+        }
+      }
+    }
+
+    function playSound(trackId, time) {
+      const audio = getAudioContext();
+      const master = audio.createGain();
+      master.gain.setValueAtTime(0.72, time);
+      master.connect(audio.destination);
+
+      if (trackId === "kick") {
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(130, time);
+        osc.frequency.exponentialRampToValueAtTime(45, time + 0.13);
+        gain.gain.setValueAtTime(1, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+        osc.connect(gain).connect(master);
+        osc.start(time);
+        osc.stop(time + 0.2);
+        return;
+      }
+
+      if (trackId === "snare") {
+        const noise = createNoise(audio, 0.18);
+        const filter = audio.createBiquadFilter();
+        const gain = audio.createGain();
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(1800, time);
+        gain.gain.setValueAtTime(0.62, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+        noise.connect(filter).connect(gain).connect(master);
+        noise.start(time);
+        noise.stop(time + 0.18);
+        return;
+      }
+
+      const duration = trackId === "crash" ? 1.1 : trackId === "ride" ? 0.42 : 0.09;
+      const filter = audio.createBiquadFilter();
+      const gain = audio.createGain();
+      const noise = createNoise(audio, duration);
+      filter.type = "highpass";
+      filter.frequency.setValueAtTime(trackId === "ride" ? 5200 : 7200, time);
+      gain.gain.setValueAtTime(trackId === "crash" ? 0.42 : trackId === "ride" ? 0.22 : 0.18, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+      noise.connect(filter).connect(gain).connect(master);
+      noise.start(time);
+      noise.stop(time + duration);
+    }
+
+    function createNoise(audio, duration) {
+      const bufferSize = Math.max(1, Math.floor(audio.sampleRate * duration));
+      const buffer = audio.createBuffer(1, bufferSize, audio.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let index = 0; index < bufferSize; index += 1) {
+        data[index] = Math.random() * 2 - 1;
+      }
+      const source = audio.createBufferSource();
+      source.buffer = buffer;
+      return source;
+    }
+
+    function getAudioContext() {
+      if (!state.audioContext) {
+        state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return state.audioContext;
+    }
+
+    function positionPlayhead() {
+      if (state.currentStep < 0) {
+        els.playhead.style.left = "0";
+        return;
+      }
+      const percent = state.currentStep / state.pattern.length;
+      els.playhead.style.left = `${percent * 100}%`;
+    }
+
+    function updateTransport() {
+      els.playButton.textContent = state.isPlaying ? "Pause" : "Play";
+      els.saveButton.textContent = state.isDirty ? "Save Pattern *" : "Save Pattern";
+    }
+
+    function markDirty() {
+      state.isDirty = true;
+      state.pattern.updatedAt = Date.now();
+      updateTransport();
+      queueAutosave();
+    }
+
+    function queueAutosave() {
+      window.clearTimeout(state.saveTimer);
+      state.saveTimer = window.setTimeout(() => {
+        saveCurrentPattern({ silent: true });
+      }, 700);
+    }
+
+    async function saveStore() {
+      try {
+        await state.adapter.saveStore(normalizeStore(state.store));
+      } catch (error) {
+        console.warn("Could not save drum machine state.", error);
+        showToast(error?.message || "Could not save");
+      }
+    }
+
+    async function createPersistenceAdapter() {
+      const appEngine = await resolveAppEngine();
+      if (appEngine) {
+        const path = `${normalizeAppRoot(appEngine.allowedRoot)}/drummachine/state.json`;
+        return {
+          kind: "app-engine",
+          path,
+          async loadStore() {
+            try {
+              const response = await appEngine.call("readJson", { path });
+              return normalizeStore(response?.data);
+            } catch (error) {
+              if (!/not found/i.test(error?.message || "")) {
+                console.warn("App Engine load failed.", error);
+              }
+              return createEmptyStore();
+            }
+          },
+          async saveStore(store) {
+            await appEngine.call("writeJson", { path, data: normalizeStore(store) });
+          },
+        };
+      }
+
+      return {
+        kind: "local-storage",
+        path: STORE_KEY,
+        async loadStore() {
+          try {
+            return normalizeStore(JSON.parse(localStorage.getItem(STORE_KEY) || "null"));
+          } catch (error) {
+            return createEmptyStore();
+          }
+        },
+        async saveStore(store) {
+          localStorage.setItem(STORE_KEY, JSON.stringify(normalizeStore(store)));
+        },
+      };
+    }
+
+    async function resolveAppEngine() {
+      if (!window.parent || window.parent === window) {
+        return null;
+      }
+
+      try {
+        const context = await waitForAppEngineContext(5000);
+        const ping = await callAppEngine("ping", {});
+        return {
+          allowedRoot: ping?.allowedRoot ?? context?.allowedRoot ?? "Apps",
+          call: (command, args) => callAppEngine(command, args),
+        };
+      } catch (error) {
+        console.warn("App Engine discovery failed.", error);
+        return null;
+      }
+    }
+
+    function waitForAppEngineContext(timeoutMs) {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const timeoutId = window.setTimeout(() => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          window.removeEventListener("message", handleMessage);
+          reject(new Error("App Engine context was not received."));
+        }, timeoutMs);
+
+        function handleMessage(event) {
+          const payload = event.data;
+          if (payload?.namespace !== APP_ENGINE_NAMESPACE || payload?.type !== CONTEXT_EVENT) {
+            return;
+          }
+          settled = true;
+          window.clearTimeout(timeoutId);
+          window.removeEventListener("message", handleMessage);
+          resolve(payload);
+        }
+
+        window.addEventListener("message", handleMessage);
+      });
+    }
+
+    function callAppEngine(command, args) {
+      return new Promise((resolve, reject) => {
+        const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const timeoutId = window.setTimeout(() => {
+          window.removeEventListener("message", handleMessage);
+          reject(new Error(`App Engine request timed out for ${command}.`));
+        }, 4000);
+
+        function handleMessage(event) {
+          const payload = event.data;
+          if (payload?.namespace !== APP_ENGINE_NAMESPACE || payload?.type !== RESPONSE_EVENT || payload.requestId !== requestId) {
+            return;
+          }
+          window.clearTimeout(timeoutId);
+          window.removeEventListener("message", handleMessage);
+          if (payload.ok) {
+            resolve(payload.result);
+          } else {
+            reject(new Error(payload.error || `App Engine ${command} failed.`));
+          }
+        }
+
+        window.addEventListener("message", handleMessage);
+        window.parent.postMessage({
+          namespace: APP_ENGINE_NAMESPACE,
+          type: REQUEST_EVENT,
+          requestId,
+          command,
+          args,
+        }, "*");
+      });
+    }
+
+    function createEmptyStore() {
+      return { version: 1, currentPatternId: null, patterns: [] };
+    }
+
+    function createPattern(name, tracks = null) {
+      const now = Date.now();
+      return {
+        id: createId(),
+        name,
+        bpm: DEFAULT_BPM,
+        length: DEFAULT_LENGTH,
+        tracks: tracks || emptyTracks(DEFAULT_LENGTH),
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
+    function defaultTracks(length) {
+      const tracks = emptyTracks(length);
+      for (let index = 0; index < length; index += 1) {
+        tracks.hat[index] = index % 2 === 1 ? 1 : 0;
+        tracks.kick[index] = index % 4 === 0 ? 1 : 0;
+        tracks.snare[index] = index % 8 === 4 ? 1 : 0;
+        tracks.ride[index] = index % 4 === 2 ? 1 : 0;
+      }
+      tracks.crash[0] = 1;
+      return tracks;
+    }
+
+    function emptyTracks(length) {
+      return Object.fromEntries(TRACKS.map((track) => [track.id, Array(length).fill(0)]));
+    }
+
+    function normalizeStore(raw) {
+      const empty = createEmptyStore();
+      if (!raw || typeof raw !== "object") {
+        return empty;
+      }
+      const patterns = Array.isArray(raw.patterns)
+        ? raw.patterns.map(normalizePattern).filter(Boolean)
+        : [];
+      return {
+        version: 1,
+        currentPatternId: typeof raw.currentPatternId === "string" ? raw.currentPatternId : patterns[0]?.id ?? null,
+        patterns,
+      };
+    }
+
+    function normalizePattern(pattern) {
+      if (!pattern || typeof pattern !== "object") {
+        return null;
+      }
+      const length = clamp(Number.parseInt(pattern.length, 10) || DEFAULT_LENGTH, 8, 32);
+      const normalized = {
+        id: typeof pattern.id === "string" && pattern.id ? pattern.id : createId(),
+        name: cleanText(pattern.name, "Untitled Pattern"),
+        bpm: clamp(Number.parseInt(pattern.bpm, 10) || DEFAULT_BPM, 40, 240),
+        length,
+        tracks: emptyTracks(length),
+        createdAt: Number.isFinite(pattern.createdAt) ? pattern.createdAt : Date.now(),
+        updatedAt: Number.isFinite(pattern.updatedAt) ? pattern.updatedAt : Date.now(),
+      };
+
+      for (const track of TRACKS) {
+        const source = Array.isArray(pattern.tracks?.[track.id]) ? pattern.tracks[track.id] : [];
+        normalized.tracks[track.id] = Array.from({ length }, (_, index) => source[index] ? 1 : 0);
+      }
+      return normalized;
+    }
+
+    function findCurrentPattern() {
+      return state.store.patterns.find((pattern) => pattern.id === state.store.currentPatternId) || null;
+    }
+
+    function clonePattern(pattern) {
+      return JSON.parse(JSON.stringify(pattern));
+    }
+
+    function createId() {
+      return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+    }
+
+    function cleanText(value, fallback) {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text || fallback;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function normalizeAppRoot(root) {
+      return String(root || "Apps").replace(/^\/+|\/+$/g, "") || "Apps";
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => {
+        els.toast.classList.remove("show");
+      }, 1600);
+    }
+  </script>
+</body>
+</html>
