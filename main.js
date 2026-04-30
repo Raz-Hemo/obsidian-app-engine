@@ -30,10 +30,35 @@ module.exports = class AppEnginePlugin extends Plugin {
 
   createEmbedOptions(params = {}) {
     return {
-      allowedRoot: normalizePath(params.allowedRoot || DEFAULT_EMBED_OPTIONS.allowedRoot),
+      allowedRoot: this.sanitizeAllowedRoot(params.allowedRoot || DEFAULT_EMBED_OPTIONS.allowedRoot),
       prettyPrintJson: params.prettyPrintJson === true,
       params,
     };
+  }
+
+  sanitizeAllowedRoot(inputPath) {
+    const rawPath = typeof inputPath === "string" ? inputPath.trim() : String(inputPath ?? "").trim();
+    if (!rawPath) {
+      throw new Error("Allowed root folder must be a non-empty vault path.");
+    }
+    if (/^[a-z][a-z0-9+.-]*:/i.test(rawPath) || rawPath.startsWith("//")) {
+      throw new Error("Allowed root folder must be a vault path, not a URL.");
+    }
+    if (rawPath.startsWith("/") || rawPath.startsWith("\\") || rawPath.includes("\\")) {
+      throw new Error("Allowed root folder must be a relative vault path.");
+    }
+
+    const segments = rawPath.split("/").map((segment) => segment.trim());
+    if (segments.some((segment) => segment === "..")) {
+      throw new Error("Allowed root folder cannot contain parent directory segments.");
+    }
+
+    const normalized = normalizePath(rawPath);
+    if (!normalized || normalized === "." || normalized === "/" || normalized.startsWith("../")) {
+      throw new Error("Allowed root folder must resolve to a folder inside the vault.");
+    }
+
+    return normalized;
   }
 
   normalizeRequestedPath(inputPath, options = this.createEmbedOptions()) {
@@ -157,8 +182,8 @@ module.exports = class AppEnginePlugin extends Plugin {
       return;
     }
 
-    const embedOptions = this.getEventEmbedOptions(event);
-    if (!embedOptions) {
+    const frameContext = this.getEventFrameContext(event);
+    if (!frameContext) {
       return;
     }
 
@@ -170,12 +195,12 @@ module.exports = class AppEnginePlugin extends Plugin {
           type: `${namespace}:response`,
           requestId: payload.requestId ?? null,
           ...response,
-        }, "*");
+        }, frameContext.targetOrigin);
       }
     };
 
     try {
-      const result = await this.executeCommand(payload.command, payload.args ?? {}, embedOptions);
+      const result = await this.executeCommand(payload.command, payload.args ?? {}, frameContext.embedOptions);
       respond({ ok: true, result });
     } catch (error) {
       respond({ ok: false, error: error?.message ?? "Unknown app engine error." });
@@ -214,12 +239,20 @@ module.exports = class AppEnginePlugin extends Plugin {
     return payload?.namespace === APP_NAMESPACE && payload?.type === `${APP_NAMESPACE}:request`;
   }
 
-  getEventEmbedOptions(event) {
-    if (event?.source && this.iframeContexts?.has(event.source)) {
-      return this.iframeContexts.get(event.source);
+  getEventFrameContext(event) {
+    if (!event?.source || !this.iframeContexts?.has(event.source)) {
+      return null;
     }
 
-    return null;
+    const frameContext = this.iframeContexts.get(event.source);
+    if (!frameContext?.iframe?.isConnected || frameContext.iframe.contentWindow !== event.source) {
+      return null;
+    }
+    if (event.origin !== frameContext.expectedOrigin) {
+      return null;
+    }
+
+    return frameContext;
   }
 
   renderAppEngineBlock(source, element, context) {
@@ -239,6 +272,14 @@ module.exports = class AppEnginePlugin extends Plugin {
       return;
     }
 
+    let embedOptions;
+    try {
+      embedOptions = this.createEmbedOptions(config.params);
+    } catch (error) {
+      element.createEl("pre", { text: error?.message ?? "Invalid app-engine options." });
+      return;
+    }
+
     const iframe = element.createEl("iframe", {
       attr: {
         loading: "lazy",
@@ -248,25 +289,30 @@ module.exports = class AppEnginePlugin extends Plugin {
     iframe.style.height = config.params.height ? String(config.params.height) : "600px";
     iframe.style.border = config.params.border ? String(config.params.border) : "0";
 
-    const embedOptions = this.createEmbedOptions(config.params);
+    const frameContext = {
+      iframe,
+      embedOptions,
+      expectedOrigin: this.getOrigin(resolvedSrc),
+      targetOrigin: this.getTargetOrigin(resolvedSrc),
+    };
     iframe.addEventListener("load", () => {
       if (iframe.contentWindow) {
-        this.iframeContexts.set(iframe.contentWindow, embedOptions);
+        this.iframeContexts.set(iframe.contentWindow, frameContext);
         iframe.contentWindow.postMessage({
           namespace: APP_NAMESPACE,
           type: `${APP_NAMESPACE}:context`,
           allowedRoot: embedOptions.allowedRoot,
           prettyPrintJson: embedOptions.prettyPrintJson,
           params: embedOptions.params,
-        }, "*");
+        }, frameContext.targetOrigin);
       }
     });
 
     if (iframe.contentWindow) {
-      this.iframeContexts.set(iframe.contentWindow, embedOptions);
+      this.iframeContexts.set(iframe.contentWindow, frameContext);
     }
 
-    iframe.setAttribute("src", this.appendAppParams(resolvedSrc, config.params));
+    iframe.setAttribute("src", resolvedSrc);
   }
 
   parseAppEngineBlock(source) {
@@ -329,27 +375,19 @@ module.exports = class AppEnginePlugin extends Plugin {
 
     const trimmed = src.trim();
     if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) || trimmed.startsWith("//") || trimmed.startsWith("#")) {
-      return trimmed;
+      return null;
     }
 
     return this.resolveVaultResourcePath(trimmed, sourcePath);
   }
 
-  appendAppParams(src, params) {
-    const entries = Object.entries(params)
-      .filter(([key]) => key !== "src")
-      .filter(([, value]) => value !== undefined && value !== null && value !== "");
+  getOrigin(src) {
+    return new URL(src, window.location.href).origin;
+  }
 
-    if (entries.length === 0) {
-      return src;
-    }
-
-    const query = entries
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-      .join("&");
-    const separator = src.includes("?") ? "&" : "?";
-
-    return `${src}${separator}${query}`;
+  getTargetOrigin(src) {
+    const origin = this.getOrigin(src);
+    return origin === "null" ? "*" : origin;
   }
 
   resolveVaultResourcePath(src, sourcePath) {

@@ -1,0 +1,1441 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recurring Tasks</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #1e1e1e;
+      --surface: #262626;
+      --surface-raised: #2f2f2f;
+      --surface-soft: #343434;
+      --text: #dcddde;
+      --muted: #a6a6a6;
+      --line: #3f3f3f;
+      --accent: #67b79f;
+      --accent-dark: #4d9f87;
+      --accent-soft: #243a34;
+      --danger: #d06d6d;
+      --warning: #d6a451;
+      --input-bg: #202020;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+    }
+
+    .main {
+      padding: 28px;
+      min-width: 0;
+    }
+
+    .sidebar {
+      border-left: 1px solid var(--line);
+      background: #232323;
+      padding: 22px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 17px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 15px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 38px;
+      border-radius: 7px;
+      padding: 0 14px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      background: var(--surface-soft);
+    }
+
+    .button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #101816;
+    }
+
+    .button.primary:hover {
+      background: var(--accent-dark);
+    }
+
+    .button.icon {
+      width: 36px;
+      min-height: 36px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      border-radius: 999px;
+      padding: 0 11px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
+    }
+
+    .task.overdue {
+      border-color: rgba(208, 109, 109, 0.55);
+    }
+
+    .task.today {
+      border-color: rgba(214, 164, 81, 0.55);
+    }
+
+    .check {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 0;
+      background: #238a57;
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 900;
+      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.12);
+    }
+
+    .check:hover {
+      background: #1d734a;
+    }
+
+    .task-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .task-name {
+      font-size: 16px;
+      font-weight: 720;
+      overflow-wrap: anywhere;
+    }
+
+    .task-meta {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 23px;
+      border-radius: 999px;
+      padding: 0 9px;
+      background: var(--surface-soft);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 650;
+      max-width: 220px;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .badge-emoji {
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .badge span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 320px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .tag-tree {
+      min-height: 120px;
+      border-radius: 8px;
+      outline: 1px dashed transparent;
+    }
+
+    .tag-tree.root-target {
+      outline-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .tag-node {
+      margin: 6px 0;
+    }
+
+    .tag-row {
+      display: grid;
+      grid-template-columns: auto 42px minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 5px 6px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+    }
+
+    .tag-row:hover,
+    .tag-row.drag-over {
+      background: var(--surface-raised);
+      border-color: var(--line);
+    }
+
+    .tag-row.drag-over {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .drag-handle {
+      color: var(--muted);
+      cursor: grab;
+      width: 18px;
+      text-align: center;
+    }
+
+    .tag-name-input {
+      min-width: 0;
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 6px;
+      padding: 6px 7px;
+      color: var(--text);
+    }
+
+    .tag-emoji-input {
+      width: 42px;
+      height: 32px;
+      border: 1px solid var(--line);
+      background: var(--input-bg);
+      color: var(--text);
+      border-radius: 7px;
+      text-align: center;
+      padding: 0 4px;
+      font-size: 18px;
+    }
+
+    .tag-emoji-input:focus,
+    .tag-name-input:focus {
+      outline: 0;
+      border-color: var(--accent);
+      background: var(--input-bg);
+    }
+
+    input[type="color"] {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .children {
+      margin-left: 24px;
+      border-left: 1px solid var(--line);
+      padding-left: 10px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(32, 33, 36, 0.32);
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .modal-backdrop.open {
+      display: grid;
+    }
+
+    .modal {
+      width: min(560px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .modal-header,
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .modal-footer {
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+      justify-content: flex-end;
+    }
+
+    .modal-body {
+      display: grid;
+      gap: 15px;
+      padding: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .input,
+    .select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      min-height: 40px;
+      padding: 0 11px;
+      background: var(--input-bg);
+      color: var(--text);
+    }
+
+    .inline-fields {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 160px;
+      gap: 10px;
+    }
+
+    .tag-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag-choice {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 32px;
+      border-radius: 999px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .tag-choice.selected {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      max-width: min(520px, calc(100% - 24px));
+      background: #303030;
+      color: white;
+      border-radius: 8px;
+      padding: 10px 13px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+      z-index: 11;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    @media (max-width: 840px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .main,
+      .sidebar {
+        padding: 18px;
+      }
+
+      .sidebar {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .task {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .task > .actions {
+        grid-column: 2;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .actions {
+        width: 100%;
+      }
+
+      .button.primary {
+        flex: 1;
+      }
+
+      .inline-fields {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>Recurring Tasks</h1>
+          <p class="subtle" id="storageStatus">Connecting...</p>
+        </div>
+        <div class="actions">
+          <span class="status-pill"><span class="status-dot"></span><span id="taskCount">0 tasks</span></span>
+          <button class="button primary" id="addTaskButton" type="button">+ Task</button>
+        </div>
+      </header>
+      <section class="task-list" id="taskList"></section>
+      <section class="empty" id="emptyState">No tasks yet.</section>
+    </main>
+
+    <aside class="sidebar">
+      <div class="panel-head">
+        <div>
+          <h2>Tags</h2>
+          <p class="subtle">Labels and groups</p>
+        </div>
+        <button class="button icon" id="addTagButton" type="button" title="Add tag">+</button>
+      </div>
+      <div class="tag-tree" id="tagTree"></div>
+    </aside>
+  </div>
+
+  <div class="modal-backdrop" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+    <form class="modal" id="taskForm">
+      <div class="modal-header">
+        <h2 id="taskModalTitle">Task</h2>
+        <button class="button icon" id="closeTaskModal" type="button" title="Close">x</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="taskNameInput">Name</label>
+          <input class="input" id="taskNameInput" autocomplete="off" required>
+        </div>
+        <div class="inline-fields">
+          <div class="field">
+            <label for="intervalInput">Every</label>
+            <input class="input" id="intervalInput" type="number" min="1" step="1" value="1" required>
+          </div>
+          <div class="field">
+            <label for="unitInput">Unit</label>
+            <select class="select" id="unitInput">
+              <option value="day">day(s)</option>
+              <option value="week">week(s)</option>
+              <option value="month">month(s)</option>
+              <option value="year">year(s)</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="deadlineInput">Next deadline</label>
+          <input class="input" id="deadlineInput" type="date" required>
+        </div>
+        <div class="field">
+          <label>Tags</label>
+          <div class="tag-picker" id="tagPicker"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="button" id="deleteTaskButton" type="button">Delete</button>
+        <button class="button primary" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORE_KEY = "app-engine:todolist";
+    const LEGACY_STORE_KEY = "vault-bridge:todolist";
+    const APP_ENGINE_NAMESPACE = "obsidian-app-engine";
+    const CONTEXT_EVENT = `${APP_ENGINE_NAMESPACE}:context`;
+    const REQUEST_EVENT = `${APP_ENGINE_NAMESPACE}:request`;
+    const RESPONSE_EVENT = `${APP_ENGINE_NAMESPACE}:response`;
+
+    const DEFAULT_COLORS = ["#2f7d69", "#7b5fc9", "#c45d3f", "#b8860b", "#3f78b5", "#8b5572"];
+    const DEFAULT_EMOJIS = ["🧭", "✨", "🔥", "🌿", "📚", "🛠️", "🎯", "💡"];
+
+    const state = {
+      adapter: null,
+      store: createEmptyStore(),
+      editingTaskId: null,
+      selectedTagIds: new Set(),
+      draggedTagId: null,
+      saveTimer: null,
+    };
+
+    const els = {
+      storageStatus: document.getElementById("storageStatus"),
+      taskCount: document.getElementById("taskCount"),
+      taskList: document.getElementById("taskList"),
+      emptyState: document.getElementById("emptyState"),
+      addTaskButton: document.getElementById("addTaskButton"),
+      addTagButton: document.getElementById("addTagButton"),
+      tagTree: document.getElementById("tagTree"),
+      taskModal: document.getElementById("taskModal"),
+      taskForm: document.getElementById("taskForm"),
+      taskModalTitle: document.getElementById("taskModalTitle"),
+      closeTaskModal: document.getElementById("closeTaskModal"),
+      taskNameInput: document.getElementById("taskNameInput"),
+      intervalInput: document.getElementById("intervalInput"),
+      unitInput: document.getElementById("unitInput"),
+      deadlineInput: document.getElementById("deadlineInput"),
+      tagPicker: document.getElementById("tagPicker"),
+      deleteTaskButton: document.getElementById("deleteTaskButton"),
+      toast: document.getElementById("toast"),
+    };
+
+    init();
+
+    async function init() {
+      bindEvents();
+      state.adapter = await createPersistenceAdapter();
+      state.store = await state.adapter.loadStore();
+      render();
+      els.storageStatus.textContent = state.adapter.kind === "app-engine"
+        ? `Saved to ${state.adapter.path}`
+        : "Saved in this browser";
+    }
+
+    function bindEvents() {
+      els.addTaskButton.addEventListener("click", () => openTaskModal());
+      els.addTagButton.addEventListener("click", addTag);
+      els.closeTaskModal.addEventListener("click", closeTaskModal);
+      els.taskModal.addEventListener("click", (event) => {
+        if (event.target === els.taskModal) {
+          closeTaskModal();
+        }
+      });
+      els.taskForm.addEventListener("submit", saveTaskFromForm);
+      els.deleteTaskButton.addEventListener("click", deleteEditingTask);
+      els.tagTree.addEventListener("dragover", (event) => {
+        if (event.target === els.tagTree) {
+          event.preventDefault();
+          els.tagTree.classList.add("root-target");
+        }
+      });
+      els.tagTree.addEventListener("dragleave", (event) => {
+        if (event.target === els.tagTree) {
+          els.tagTree.classList.remove("root-target");
+        }
+      });
+      els.tagTree.addEventListener("drop", (event) => {
+        if (event.target !== els.tagTree || !state.draggedTagId) {
+          return;
+        }
+        event.preventDefault();
+        els.tagTree.classList.remove("root-target");
+        moveTag(state.draggedTagId, null);
+      });
+    }
+
+    function render() {
+      normalizeReferences();
+      renderTasks();
+      renderTags();
+      if (els.taskModal.classList.contains("open")) {
+        renderTagPicker();
+      }
+    }
+
+    function renderTasks() {
+      const tasks = [...state.store.tasks].sort((left, right) => {
+        const deadlineDiff = dateValue(left.deadline) - dateValue(right.deadline);
+        return deadlineDiff || left.name.localeCompare(right.name);
+      });
+
+      els.taskList.innerHTML = "";
+      els.emptyState.style.display = tasks.length ? "none" : "grid";
+      els.taskCount.textContent = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
+
+      for (const task of tasks) {
+        const item = document.createElement("article");
+        item.className = `task ${deadlineClass(task.deadline)}`;
+
+        const check = document.createElement("button");
+        check.className = "check";
+        check.type = "button";
+        check.title = "Complete";
+        check.textContent = "☑";
+        check.addEventListener("click", () => completeTask(task.id));
+
+        const content = document.createElement("div");
+        const title = document.createElement("div");
+        title.className = "task-title";
+
+        const name = document.createElement("span");
+        name.className = "task-name";
+        name.textContent = task.name;
+        title.append(name);
+
+        const meta = document.createElement("div");
+        meta.className = "task-meta";
+        meta.append(textSpan(formatDeadline(task.deadline)));
+        meta.append(textSpan(`Every ${task.interval} ${pluralize(task.unit, task.interval)}`));
+        if (task.lastCompletedAt) {
+          meta.append(textSpan(`Last done ${formatShortDate(task.lastCompletedAt)}`));
+        }
+
+        const badges = document.createElement("div");
+        badges.className = "task-meta";
+        for (const tagId of task.tagIds) {
+          const tag = getTag(tagId);
+          if (tag) {
+            badges.append(createTagBadge(tag));
+          }
+        }
+
+        content.append(title, meta);
+        if (task.tagIds.length) {
+          content.append(badges);
+        }
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        const edit = document.createElement("button");
+        edit.className = "button icon";
+        edit.type = "button";
+        edit.title = "Edit task";
+        edit.textContent = "✏️";
+        edit.addEventListener("click", () => openTaskModal(task.id));
+        actions.append(edit);
+
+        item.append(check, content, actions);
+        els.taskList.append(item);
+      }
+    }
+
+    function renderTags() {
+      els.tagTree.innerHTML = "";
+      const roots = state.store.tags
+        .filter((tag) => !tag.parentId)
+        .sort(sortTags);
+
+      if (!roots.length) {
+        const empty = document.createElement("p");
+        empty.className = "subtle";
+        empty.textContent = "No tags yet.";
+        els.tagTree.append(empty);
+        return;
+      }
+
+      for (const tag of roots) {
+        els.tagTree.append(renderTagNode(tag));
+      }
+    }
+
+    function renderTagNode(tag) {
+      const node = document.createElement("div");
+      node.className = "tag-node";
+
+      const row = document.createElement("div");
+      row.className = "tag-row";
+      row.draggable = true;
+      row.dataset.tagId = tag.id;
+
+      row.addEventListener("dragstart", (event) => {
+        state.draggedTagId = tag.id;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", tag.id);
+      });
+      row.addEventListener("dragend", () => {
+        state.draggedTagId = null;
+        document.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over"));
+        els.tagTree.classList.remove("root-target");
+      });
+      row.addEventListener("dragover", (event) => {
+        if (state.draggedTagId && state.draggedTagId !== tag.id && !isDescendant(tag.id, state.draggedTagId)) {
+          event.preventDefault();
+          row.classList.add("drag-over");
+        }
+      });
+      row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+      row.addEventListener("drop", (event) => {
+        event.preventDefault();
+        row.classList.remove("drag-over");
+        if (state.draggedTagId) {
+          moveTag(state.draggedTagId, tag.id);
+        }
+      });
+
+      const handle = document.createElement("span");
+      handle.className = "drag-handle";
+      handle.textContent = "::";
+
+      const emojiInput = document.createElement("input");
+      emojiInput.className = "tag-emoji-input";
+      emojiInput.value = tag.emoji;
+      emojiInput.maxLength = 4;
+      emojiInput.setAttribute("aria-label", "Tag emoji");
+      emojiInput.addEventListener("change", () => updateTag(tag.id, { emoji: cleanEmoji(emojiInput.value) }));
+      emojiInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          emojiInput.blur();
+        }
+      });
+
+      const nameInput = document.createElement("input");
+      nameInput.className = "tag-name-input";
+      nameInput.value = tag.name;
+      nameInput.setAttribute("aria-label", "Tag name");
+      nameInput.addEventListener("change", () => updateTag(tag.id, { name: cleanName(nameInput.value, "Tag") }));
+      nameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          nameInput.blur();
+        }
+      });
+
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.value = tag.color;
+      colorInput.title = "Tag color";
+      colorInput.addEventListener("input", () => updateTag(tag.id, { color: colorInput.value }));
+
+      const remove = document.createElement("button");
+      remove.className = "button icon";
+      remove.type = "button";
+      remove.title = "Delete tag";
+      remove.textContent = "x";
+      remove.addEventListener("click", () => deleteTag(tag.id));
+
+      row.append(handle, emojiInput, nameInput, colorInput, remove);
+      node.append(row);
+
+      const children = state.store.tags
+        .filter((candidate) => candidate.parentId === tag.id)
+        .sort(sortTags);
+
+      if (children.length) {
+        const childWrap = document.createElement("div");
+        childWrap.className = "children";
+        for (const child of children) {
+          childWrap.append(renderTagNode(child));
+        }
+        node.append(childWrap);
+      }
+
+      return node;
+    }
+
+    function renderTagPicker() {
+      els.tagPicker.innerHTML = "";
+      const tags = [...state.store.tags].sort((left, right) =>
+        tagPath(left).localeCompare(tagPath(right)),
+      );
+
+      if (!tags.length) {
+        const none = document.createElement("p");
+        none.className = "subtle";
+        none.textContent = "No tags yet.";
+        els.tagPicker.append(none);
+        return;
+      }
+
+      for (const tag of tags) {
+        const choice = document.createElement("button");
+        choice.type = "button";
+        choice.className = `tag-choice ${state.selectedTagIds.has(tag.id) ? "selected" : ""}`;
+        choice.append(createEmojiSpan(tag.emoji), createColorDot(tag.color), document.createTextNode(tagPath(tag)));
+        choice.addEventListener("click", () => {
+          if (state.selectedTagIds.has(tag.id)) {
+            state.selectedTagIds.delete(tag.id);
+          } else {
+            state.selectedTagIds.add(tag.id);
+          }
+          renderTagPicker();
+        });
+        els.tagPicker.append(choice);
+      }
+    }
+
+    function openTaskModal(taskId = null) {
+      state.editingTaskId = taskId;
+      const task = taskId ? getTask(taskId) : null;
+      state.selectedTagIds = new Set(task?.tagIds ?? []);
+
+      els.taskModalTitle.textContent = task ? "Edit Task" : "New Task";
+      els.taskNameInput.value = task?.name ?? "";
+      els.intervalInput.value = task?.interval ?? 1;
+      els.unitInput.value = task?.unit ?? "day";
+      els.deadlineInput.value = task?.deadline ?? todayString();
+      els.deleteTaskButton.style.display = task ? "inline-flex" : "none";
+      renderTagPicker();
+      els.taskModal.classList.add("open");
+      window.setTimeout(() => els.taskNameInput.focus(), 0);
+    }
+
+    function closeTaskModal() {
+      els.taskModal.classList.remove("open");
+      state.editingTaskId = null;
+      state.selectedTagIds = new Set();
+    }
+
+    function saveTaskFromForm(event) {
+      event.preventDefault();
+      const id = state.editingTaskId ?? createId();
+      const existing = getTask(id);
+      const nextTask = {
+        id,
+        name: cleanName(els.taskNameInput.value, "Untitled task"),
+        interval: Math.max(1, Number.parseInt(els.intervalInput.value, 10) || 1),
+        unit: els.unitInput.value,
+        deadline: els.deadlineInput.value || todayString(),
+        tagIds: [...state.selectedTagIds],
+        createdAt: existing?.createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+        lastCompletedAt: existing?.lastCompletedAt ?? null,
+      };
+
+      if (existing) {
+        state.store.tasks = state.store.tasks.map((task) => task.id === id ? nextTask : task);
+      } else {
+        state.store.tasks.push(nextTask);
+      }
+
+      closeTaskModal();
+      persistAndRender();
+    }
+
+    function completeTask(taskId) {
+      const task = getTask(taskId);
+      if (!task) {
+        return;
+      }
+
+      const today = new Date(`${todayString()}T00:00:00`);
+      const next = addInterval(today, task.interval, task.unit);
+
+      task.deadline = toDateInput(next);
+      task.lastCompletedAt = Date.now();
+      task.updatedAt = Date.now();
+      persistAndRender();
+    }
+
+    function deleteEditingTask() {
+      if (!state.editingTaskId) {
+        return;
+      }
+      state.store.tasks = state.store.tasks.filter((task) => task.id !== state.editingTaskId);
+      closeTaskModal();
+      persistAndRender();
+    }
+
+    function addTag() {
+      const index = state.store.tags.length;
+      state.store.tags.push({
+        id: createId(),
+        name: `Tag ${index + 1}`,
+        color: DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+        emoji: DEFAULT_EMOJIS[index % DEFAULT_EMOJIS.length],
+        parentId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      persistAndRender();
+    }
+
+    function updateTag(tagId, patch) {
+      state.store.tags = state.store.tags.map((tag) =>
+        tag.id === tagId ? { ...tag, ...patch, updatedAt: Date.now() } : tag,
+      );
+      persistAndRender();
+    }
+
+    function moveTag(tagId, parentId) {
+      if (tagId === parentId || (parentId && isDescendant(parentId, tagId))) {
+        return;
+      }
+      updateTag(tagId, { parentId });
+    }
+
+    function deleteTag(tagId) {
+      const ids = collectTagAndChildren(tagId);
+      state.store.tags = state.store.tags.filter((tag) => !ids.has(tag.id));
+      state.store.tasks = state.store.tasks.map((task) => ({
+        ...task,
+        tagIds: task.tagIds.filter((id) => !ids.has(id)),
+      }));
+      persistAndRender();
+    }
+
+    function persistAndRender() {
+      render();
+      window.clearTimeout(state.saveTimer);
+      state.saveTimer = window.setTimeout(async () => {
+        try {
+          await state.adapter.saveStore(state.store);
+          showToast("Saved");
+        } catch (error) {
+          console.warn("Could not save task data.", error);
+          showToast(error?.message ?? "Could not save");
+        }
+      }, 120);
+    }
+
+    async function createPersistenceAdapter() {
+      const appEngine = await resolveAppEngine();
+      if (appEngine) {
+        const path = `${normalizeAppRoot(appEngine.allowedRoot)}/todolist/state.json`;
+        return {
+          kind: "app-engine",
+          path,
+          async loadStore() {
+            try {
+              const response = await appEngine.call("readJson", { path });
+              return normalizeStore(response?.data);
+            } catch (error) {
+              if (!/not found/i.test(error?.message ?? "")) {
+                console.warn("App Engine load failed.", error);
+              }
+              return createEmptyStore();
+            }
+          },
+          async saveStore(store) {
+            await appEngine.call("writeJson", { path, data: normalizeStore(store) });
+          },
+        };
+      }
+
+      return {
+        kind: "local-storage",
+        path: STORE_KEY,
+        async loadStore() {
+          try {
+            const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem(LEGACY_STORE_KEY);
+            return normalizeStore(JSON.parse(raw || "null"));
+          } catch (error) {
+            return createEmptyStore();
+          }
+        },
+        async saveStore(store) {
+          const content = JSON.stringify(normalizeStore(store));
+          localStorage.setItem(STORE_KEY, content);
+          localStorage.removeItem(LEGACY_STORE_KEY);
+        },
+      };
+    }
+
+    async function resolveAppEngine() {
+      if (!window.parent || window.parent === window) {
+        return null;
+      }
+
+      try {
+        const context = await waitForAppEngineContext(5000);
+        const ping = await callAppEngine("ping", {});
+        return {
+          allowedRoot: ping?.allowedRoot ?? context?.allowedRoot ?? "Apps",
+          prettyPrintJson: ping?.prettyPrintJson ?? context?.prettyPrintJson ?? false,
+          params: context?.params ?? {},
+          call: (command, args) => callAppEngine(command, args),
+        };
+      } catch (error) {
+        console.warn("App Engine discovery failed.", error);
+        return null;
+      }
+    }
+
+    function waitForAppEngineContext(timeoutMs) {
+      return new Promise((resolve, reject) => {
+        const params = new URLSearchParams(window.location.search);
+        const urlAllowedRoot = params.get("allowedRoot") || params.get("allowed-root-folder");
+        let settled = false;
+
+        const timeoutId = window.setTimeout(() => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          window.removeEventListener("message", handleMessage);
+          if (urlAllowedRoot) {
+            resolve({
+              allowedRoot: urlAllowedRoot,
+              prettyPrintJson: params.get("prettyPrintJson") === "true",
+              params: Object.fromEntries(params.entries()),
+            });
+          } else {
+            reject(new Error("App Engine context was not received."));
+          }
+        }, timeoutMs);
+
+        function handleMessage(event) {
+          const payload = event.data;
+          if (payload?.namespace !== APP_ENGINE_NAMESPACE || payload?.type !== CONTEXT_EVENT) {
+            return;
+          }
+
+          settled = true;
+          window.clearTimeout(timeoutId);
+          window.removeEventListener("message", handleMessage);
+          resolve({
+            allowedRoot: payload.allowedRoot ?? urlAllowedRoot ?? "Apps",
+            prettyPrintJson: payload.prettyPrintJson === true,
+            params: payload.params ?? Object.fromEntries(params.entries()),
+          });
+        }
+
+        window.addEventListener("message", handleMessage);
+      });
+    }
+
+    function callAppEngine(command, args) {
+      return new Promise((resolve, reject) => {
+        if (!window.parent || window.parent === window) {
+          reject(new Error("App Engine parent window is unavailable."));
+          return;
+        }
+
+        const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const timeoutId = window.setTimeout(() => {
+          window.removeEventListener("message", handleMessage);
+          reject(new Error(`App Engine request timed out for ${command}.`));
+        }, 4000);
+
+        function handleMessage(event) {
+          const payload = event.data;
+          if (!payload || payload.namespace !== APP_ENGINE_NAMESPACE) {
+            return;
+          }
+          if (payload.type !== RESPONSE_EVENT || payload.requestId !== requestId) {
+            return;
+          }
+
+          window.clearTimeout(timeoutId);
+          window.removeEventListener("message", handleMessage);
+
+          if (payload.ok) {
+            resolve(payload.result);
+          } else {
+            reject(new Error(payload.error || `App Engine ${command} failed.`));
+          }
+        }
+
+        window.addEventListener("message", handleMessage);
+        window.parent.postMessage({
+          namespace: APP_ENGINE_NAMESPACE,
+          type: REQUEST_EVENT,
+          requestId,
+          command,
+          args,
+        }, "*");
+      });
+    }
+
+    function normalizeStore(raw) {
+      const empty = createEmptyStore();
+      if (!raw || typeof raw !== "object") {
+        return empty;
+      }
+
+      return {
+        version: 1,
+        tasks: Array.isArray(raw.tasks) ? raw.tasks.map(normalizeTask).filter(Boolean) : [],
+        tags: Array.isArray(raw.tags) ? raw.tags.map(normalizeTag).filter(Boolean) : [],
+      };
+    }
+
+    function normalizeTask(task) {
+      if (!task || typeof task !== "object") {
+        return null;
+      }
+      return {
+        id: typeof task.id === "string" ? task.id : createId(),
+        name: cleanName(task.name, "Untitled task"),
+        interval: Math.max(1, Number.parseInt(task.interval, 10) || 1),
+        unit: ["day", "week", "month", "year"].includes(task.unit) ? task.unit : "day",
+        deadline: isDateInput(task.deadline) ? task.deadline : todayString(),
+        tagIds: Array.isArray(task.tagIds) ? task.tagIds.filter((id) => typeof id === "string") : [],
+        createdAt: Number.isFinite(task.createdAt) ? task.createdAt : Date.now(),
+        updatedAt: Number.isFinite(task.updatedAt) ? task.updatedAt : Date.now(),
+        lastCompletedAt: Number.isFinite(task.lastCompletedAt) ? task.lastCompletedAt : null,
+      };
+    }
+
+    function normalizeTag(tag) {
+      if (!tag || typeof tag !== "object") {
+        return null;
+      }
+      return {
+        id: typeof tag.id === "string" ? tag.id : createId(),
+        name: cleanName(tag.name, "Tag"),
+        color: /^#[0-9a-f]{6}$/i.test(tag.color) ? tag.color : DEFAULT_COLORS[0],
+        emoji: cleanEmoji(tag.emoji),
+        parentId: typeof tag.parentId === "string" ? tag.parentId : null,
+        createdAt: Number.isFinite(tag.createdAt) ? tag.createdAt : Date.now(),
+        updatedAt: Number.isFinite(tag.updatedAt) ? tag.updatedAt : Date.now(),
+      };
+    }
+
+    function normalizeReferences() {
+      const tagIds = new Set(state.store.tags.map((tag) => tag.id));
+      state.store.tags = state.store.tags.map((tag) => ({
+        ...tag,
+        parentId: tag.parentId && tagIds.has(tag.parentId) && tag.parentId !== tag.id ? tag.parentId : null,
+      }));
+
+      for (const tag of state.store.tags) {
+        if (tag.parentId && isDescendant(tag.parentId, tag.id)) {
+          tag.parentId = null;
+        }
+      }
+
+      state.store.tasks = state.store.tasks.map((task) => ({
+        ...task,
+        tagIds: [...new Set(task.tagIds.filter((id) => tagIds.has(id)))],
+      }));
+    }
+
+    function createEmptyStore() {
+      return { version: 1, tasks: [], tags: [] };
+    }
+
+    function getTask(id) {
+      return state.store.tasks.find((task) => task.id === id) ?? null;
+    }
+
+    function getTag(id) {
+      return state.store.tags.find((tag) => tag.id === id) ?? null;
+    }
+
+    function createId() {
+      return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+    }
+
+    function cleanName(value, fallback) {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text || fallback;
+    }
+
+    function cleanEmoji(value) {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text ? Array.from(text).slice(0, 2).join("") : "🏷️";
+    }
+
+    function normalizeAppRoot(value) {
+      const trimmed = typeof value === "string" ? value.trim().replace(/^\/+|\/+$/g, "") : "";
+      return trimmed || "Apps";
+    }
+
+    function todayString() {
+      return toDateInput(new Date());
+    }
+
+    function toDateInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function isDateInput(value) {
+      return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    }
+
+    function dateValue(value) {
+      return new Date(`${value}T00:00:00`).getTime();
+    }
+
+    function addInterval(date, interval, unit) {
+      const next = new Date(date.getTime());
+      if (unit === "day") {
+        next.setDate(next.getDate() + interval);
+      } else if (unit === "week") {
+        next.setDate(next.getDate() + interval * 7);
+      } else if (unit === "month") {
+        next.setMonth(next.getMonth() + interval);
+      } else if (unit === "year") {
+        next.setFullYear(next.getFullYear() + interval);
+      }
+      return next;
+    }
+
+    function deadlineClass(deadline) {
+      const diff = daysUntil(deadline);
+      if (diff < 0) {
+        return "overdue";
+      }
+      if (diff === 0) {
+        return "today";
+      }
+      return "";
+    }
+
+    function formatDeadline(deadline) {
+      const diff = daysUntil(deadline);
+      if (diff < 0) {
+        return `${Math.abs(diff)} ${Math.abs(diff) === 1 ? "day" : "days"} overdue`;
+      }
+      if (diff === 0) {
+        return "Due today";
+      }
+      if (diff === 1) {
+        return "Due tomorrow";
+      }
+      return `Due ${formatDateString(deadline)}`;
+    }
+
+    function daysUntil(deadline) {
+      const dayMs = 24 * 60 * 60 * 1000;
+      return Math.round((dateValue(deadline) - dateValue(todayString())) / dayMs);
+    }
+
+    function formatDateString(value) {
+      return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" })
+        .format(new Date(`${value}T00:00:00`));
+    }
+
+    function formatShortDate(timestamp) {
+      return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" })
+        .format(new Date(timestamp));
+    }
+
+    function pluralize(unit, count) {
+      return count === 1 ? unit : `${unit}s`;
+    }
+
+    function sortTags(left, right) {
+      return left.name.localeCompare(right.name);
+    }
+
+    function tagPath(tag) {
+      const names = [];
+      let current = tag;
+      const seen = new Set();
+      while (current && !seen.has(current.id)) {
+        seen.add(current.id);
+        names.unshift(current.name);
+        current = current.parentId ? getTag(current.parentId) : null;
+      }
+      return names.join(" / ");
+    }
+
+    function isDescendant(candidateId, ancestorId) {
+      let current = getTag(candidateId);
+      const seen = new Set();
+      while (current?.parentId && !seen.has(current.id)) {
+        seen.add(current.id);
+        if (current.parentId === ancestorId) {
+          return true;
+        }
+        current = getTag(current.parentId);
+      }
+      return false;
+    }
+
+    function collectTagAndChildren(tagId) {
+      const ids = new Set([tagId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const tag of state.store.tags) {
+          if (tag.parentId && ids.has(tag.parentId) && !ids.has(tag.id)) {
+            ids.add(tag.id);
+            changed = true;
+          }
+        }
+      }
+      return ids;
+    }
+
+    function createTagBadge(tag) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.title = tagPath(tag);
+      badge.append(createEmojiSpan(tag.emoji), createColorDot(tag.color), textSpan(tag.name));
+      return badge;
+    }
+
+    function createEmojiSpan(emoji) {
+      const span = document.createElement("span");
+      span.className = "badge-emoji";
+      span.textContent = cleanEmoji(emoji);
+      return span;
+    }
+
+    function createColorDot(color) {
+      const dot = document.createElement("span");
+      dot.className = "badge-dot";
+      dot.style.background = color;
+      return dot;
+    }
+
+    function textSpan(text) {
+      const span = document.createElement("span");
+      span.textContent = text;
+      return span;
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 1100);
+    }
+  </script>
+</body>
+</html>

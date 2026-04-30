@@ -1,6 +1,13 @@
 # App Engine
 
-A tiny Obsidian plugin that gives embedded apps local-first persistent storage over notes in your vault.
+<p style="color: red;"><strong>Warning:</strong> Run App Engine apps at your own discretion. Running untrusted code carries security risks.</p>
+
+An Obsidian plugin that gives embedded apps local-first persistent storage over notes in your vault.
+Manipulate your data however you want, call external APIs, and work offline.
+
+You can easily build apps with your AI agents by pointing them to this plugin and prompting. It also pairs extremely well with vault backup methods like git - take your apps anywhere, version control them, zero hosting hassle.
+
+See the examples folder for ideas.
 
 ## What it does
 
@@ -8,15 +15,8 @@ It exposes a small API for apps embedded by App Engine to read and write files i
 
 It renders `app-engine` code blocks into managed iframes and resolves relative `src` paths into Obsidian vault resource URLs, so embeds like `./apps/griddlers/index.html` keep working when your vault moves.
 
-Default root folder:
+The plugin only supports single-page html files with inline CSS and JS. complex projects that use frameworks like react are out of scope, though you can probably compile them to such a single page html.
 
-- `Apps`
-
-Example files your apps might create:
-
-- `Apps/Griddlers/state/295279.json`
-- `Apps/Griddlers/settings.json`
-- `Apps/Whiteboard/session-01.json`
 
 ## Install in a vault
 
@@ -41,19 +41,17 @@ Use an `app-engine` code block to embed an app with per-embed parameters:
 src: ./apps/griddlers/index.html
 allowed-root-folder: Apps/Griddlers
 pretty-print-json: true
-puzzleId: 295279
-theme: dark
 height: 720px
 ```
 ````
 
 Supported App Engine parameters:
 
-- `src`: required app entry file or URL.
+- `src`: required vault-local app entry file. External URLs are not supported, as a security measure.
 - `allowed-root-folder`: optional vault folder the embed can read/write. Defaults to `Apps`.
 - `pretty-print-json`: optional boolean. Defaults to `false`, so JSON writes are compact.
 
-Other parameters are passed through to the app as query parameters and in an initial `obsidian-app-engine:context` message.
+Other parameters are passed to the app in an initial `obsidian-app-engine:context` message.
 
 Context message:
 
@@ -70,6 +68,8 @@ window.addEventListener("message", (event) => {
 ## Iframe bridge
 
 Apps embedded with an `app-engine` block communicate with `postMessage`. Raw `<iframe>` elements are ignored by App Engine and cannot use this bridge.
+
+Nested iframes inside an app are not registered with App Engine. They cannot use the bridge unless the app intentionally forwards messages for them.
 
 Request shape:
 
