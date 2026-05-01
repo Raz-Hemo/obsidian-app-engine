@@ -190,6 +190,14 @@
       font-weight: 700;
     }
 
+    .thumbnail-field {
+      flex: 1 1 260px;
+    }
+
+    .thumbnail-field input {
+      width: 100%;
+    }
+
     .transport {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -230,7 +238,7 @@
 
     .track-labels {
       display: grid;
-      grid-template-rows: repeat(5, 58px);
+      grid-template-rows: repeat(6, 58px);
       background: #222;
       border-right: 1px solid var(--line);
       z-index: 3;
@@ -253,7 +261,7 @@
 
     .steps {
       display: grid;
-      grid-template-rows: repeat(5, 58px);
+      grid-template-rows: repeat(6, 58px);
     }
 
     .track-row {
@@ -276,10 +284,14 @@
     .step::after {
       content: "";
       position: absolute;
-      inset: 15px;
+      left: 50%;
+      top: 50%;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       border: 1px solid #4d4d4d;
       background: #202020;
+      transform: translate(-50%, -50%);
       transition: transform 100ms ease, background 100ms ease, border-color 100ms ease;
     }
 
@@ -287,7 +299,7 @@
       background: var(--accent);
       border-color: var(--accent);
       box-shadow: 0 0 20px rgba(84, 198, 162, 0.2);
-      transform: scale(1.08);
+      transform: translate(-50%, -50%) scale(1.08);
     }
 
     .step.playing::before {
@@ -358,7 +370,9 @@
       color: var(--text);
       padding: 12px;
       display: grid;
-      gap: 6px;
+      grid-template-columns: 32px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
     }
 
     .pattern-card:hover {
@@ -373,6 +387,30 @@
 
     .pattern-card strong {
       overflow-wrap: anywhere;
+    }
+
+    .pattern-thumb {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #191919;
+      border: 1px solid var(--line);
+      display: block;
+    }
+
+    .pattern-thumb.placeholder {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .pattern-text {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
     }
 
     .pattern-meta {
@@ -472,13 +510,11 @@
           </label>
           <label>
             <span>Length</span>
-            <select id="lengthInput">
-              <option value="8">8 steps</option>
-              <option value="12">12 steps</option>
-              <option value="16">16 steps</option>
-              <option value="24">24 steps</option>
-              <option value="32">32 steps</option>
-            </select>
+            <input id="lengthInput" type="number" min="1" max="64" step="1">
+          </label>
+          <label class="thumbnail-field">
+            <span>Thumbnail URL</span>
+            <input id="thumbnailInput" type="url" placeholder="Paste image link, then press Enter">
           </label>
         </div>
         <div class="toolbar">
@@ -528,10 +564,13 @@
       { id: "hat", name: "Hat" },
       { id: "kick", name: "Kick" },
       { id: "snare", name: "Snare" },
+      { id: "ghostSnare", name: "Ghost" },
       { id: "crash", name: "Crash" },
       { id: "ride", name: "Ride" },
     ];
     const DEFAULT_LENGTH = 16;
+    const MIN_LENGTH = 1;
+    const MAX_LENGTH = 64;
     const DEFAULT_BPM = 120;
 
     const state = {
@@ -545,6 +584,9 @@
       nextStepTime: 0,
       schedulerTimer: null,
       audioContext: null,
+      rideSampleBuffer: null,
+      rideSampleLoading: false,
+      rideSampleFailed: false,
       saveTimer: null,
     };
 
@@ -559,6 +601,7 @@
       nameInput: document.getElementById("nameInput"),
       bpmInput: document.getElementById("bpmInput"),
       lengthInput: document.getElementById("lengthInput"),
+      thumbnailInput: document.getElementById("thumbnailInput"),
       trackLabels: document.getElementById("trackLabels"),
       steps: document.getElementById("steps"),
       stepNumbers: document.getElementById("stepNumbers"),
@@ -587,6 +630,7 @@
       els.storageStatus.textContent = state.adapter.kind === "app-engine"
         ? `Saved to ${state.adapter.path}`
         : "Saved in this browser";
+      preloadRideSample();
     }
 
     function bindEvents() {
@@ -611,12 +655,20 @@
         markDirty();
         render();
       });
+      els.thumbnailInput.addEventListener("change", updateThumbnailFromInput);
+      els.thumbnailInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          updateThumbnailFromInput();
+        }
+      });
     }
 
     function render() {
       els.nameInput.value = state.pattern.name;
       els.bpmInput.value = state.pattern.bpm;
       els.lengthInput.value = state.pattern.length;
+      els.thumbnailInput.value = state.pattern.thumbnailUrl || "";
       renderSequencer();
       renderPatternList();
       updateTransport();
@@ -681,15 +733,34 @@
           loadPattern(pattern.id);
         });
 
+        const thumb = createPatternThumb(pattern);
+        const text = document.createElement("div");
+        text.className = "pattern-text";
         const name = document.createElement("strong");
         name.textContent = pattern.name || "Untitled Pattern";
         const meta = document.createElement("div");
         meta.className = "pattern-meta";
         meta.textContent = `${pattern.bpm} BPM | ${pattern.length} steps`;
 
-        button.append(name, meta);
+        text.append(name, meta);
+        button.append(thumb, text);
         els.patternList.appendChild(button);
       }
+    }
+
+    function createPatternThumb(pattern) {
+      if (pattern.thumbnailData) {
+        const image = document.createElement("img");
+        image.className = "pattern-thumb";
+        image.src = pattern.thumbnailData;
+        image.alt = "";
+        return image;
+      }
+
+      const placeholder = document.createElement("div");
+      placeholder.className = "pattern-thumb placeholder";
+      placeholder.textContent = (pattern.name || "?").trim().slice(0, 1).toUpperCase() || "?";
+      return placeholder;
     }
 
     function toggleStep(trackId, index) {
@@ -702,7 +773,7 @@
     }
 
     function resizePattern(nextLength) {
-      const length = clamp(nextLength, 8, 32);
+      const length = clamp(nextLength, MIN_LENGTH, MAX_LENGTH);
       state.pattern.length = length;
       for (const track of TRACKS) {
         const steps = Array.isArray(state.pattern.tracks[track.id]) ? state.pattern.tracks[track.id] : [];
@@ -719,6 +790,32 @@
       }
       markDirty();
       renderSequencer();
+    }
+
+    async function updateThumbnailFromInput() {
+      const url = els.thumbnailInput.value.trim();
+      state.pattern.thumbnailUrl = url;
+
+      if (!url) {
+        state.pattern.thumbnailData = "";
+        markDirty();
+        renderPatternList();
+        await saveCurrentPattern({ silent: true });
+        showToast("Thumbnail cleared");
+        return;
+      }
+
+      try {
+        showToast("Fetching thumbnail...");
+        state.pattern.thumbnailData = await fetchThumbnailData(url);
+        markDirty();
+        renderPatternList();
+        await saveCurrentPattern({ silent: true });
+        showToast("Thumbnail saved");
+      } catch (error) {
+        console.warn("Could not fetch thumbnail.", error);
+        showToast(error?.message || "Could not fetch thumbnail");
+      }
     }
 
     async function saveCurrentPattern(options = {}) {
@@ -869,43 +966,220 @@
 
       if (trackId === "kick") {
         const osc = audio.createOscillator();
+        const body = audio.createOscillator();
         const gain = audio.createGain();
+        const bodyGain = audio.createGain();
+        const click = createNoise(audio, 0.025);
+        const clickFilter = audio.createBiquadFilter();
+        const clickGain = audio.createGain();
+
         osc.type = "sine";
-        osc.frequency.setValueAtTime(130, time);
-        osc.frequency.exponentialRampToValueAtTime(45, time + 0.13);
-        gain.gain.setValueAtTime(1, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+        osc.frequency.setValueAtTime(78, time);
+        osc.frequency.exponentialRampToValueAtTime(48, time + 0.08);
+        gain.gain.setValueAtTime(0.82, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.26);
         osc.connect(gain).connect(master);
+
+        body.type = "sine";
+        body.frequency.setValueAtTime(52, time);
+        bodyGain.gain.setValueAtTime(0.32, time);
+        bodyGain.gain.exponentialRampToValueAtTime(0.001, time + 0.34);
+        body.connect(bodyGain).connect(master);
+
+        clickFilter.type = "bandpass";
+        clickFilter.frequency.setValueAtTime(950, time);
+        clickFilter.Q.setValueAtTime(1.4, time);
+        clickGain.gain.setValueAtTime(0.1, time);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.022);
+        click.connect(clickFilter).connect(clickGain).connect(master);
+
         osc.start(time);
-        osc.stop(time + 0.2);
+        body.start(time);
+        click.start(time);
+        osc.stop(time + 0.28);
+        body.stop(time + 0.36);
+        click.stop(time + 0.025);
         return;
       }
 
-      if (trackId === "snare") {
-        const noise = createNoise(audio, 0.18);
+      if (trackId === "snare" || trackId === "ghostSnare") {
+        const isGhost = trackId === "ghostSnare";
+        const noise = createNoise(audio, isGhost ? 0.12 : 0.18);
         const filter = audio.createBiquadFilter();
         const gain = audio.createGain();
         filter.type = "bandpass";
-        filter.frequency.setValueAtTime(1800, time);
-        gain.gain.setValueAtTime(0.62, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+        filter.frequency.setValueAtTime(isGhost ? 2300 : 1800, time);
+        gain.gain.setValueAtTime(isGhost ? 0.15 : 0.62, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + (isGhost ? 0.1 : 0.16));
         noise.connect(filter).connect(gain).connect(master);
         noise.start(time);
-        noise.stop(time + 0.18);
+        noise.stop(time + (isGhost ? 0.12 : 0.18));
         return;
       }
 
-      const duration = trackId === "crash" ? 1.1 : trackId === "ride" ? 0.42 : 0.09;
+      if (trackId === "ride") {
+        playRide(audio, master, time);
+        return;
+      }
+
+      const duration = trackId === "crash" ? 1.1 : 0.09;
       const filter = audio.createBiquadFilter();
       const gain = audio.createGain();
       const noise = createNoise(audio, duration);
       filter.type = "highpass";
-      filter.frequency.setValueAtTime(trackId === "ride" ? 5200 : 7200, time);
-      gain.gain.setValueAtTime(trackId === "crash" ? 0.42 : trackId === "ride" ? 0.22 : 0.18, time);
+      filter.frequency.setValueAtTime(7200, time);
+      gain.gain.setValueAtTime(trackId === "crash" ? 0.42 : 0.18, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
       noise.connect(filter).connect(gain).connect(master);
       noise.start(time);
       noise.stop(time + duration);
+    }
+
+    function playRide(audio, master, time) {
+      if (state.rideSampleBuffer) {
+        const source = audio.createBufferSource();
+        const gain = audio.createGain();
+        source.buffer = state.rideSampleBuffer;
+        gain.gain.setValueAtTime(0.78, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + Math.min(source.buffer.duration, 2.2));
+        source.connect(gain).connect(master);
+        source.start(time);
+        return;
+      }
+
+      if (!state.rideSampleFailed) {
+        preloadRideSample();
+      }
+      playSynthRide(audio, master, time);
+    }
+
+    function playSynthRide(audio, master, time) {
+      const source = createNoise(audio, 0.22);
+      const filter = audio.createBiquadFilter();
+      const toneFilter = audio.createBiquadFilter();
+      const dryGain = audio.createGain();
+      const wetGain = audio.createGain();
+      const convolver = audio.createConvolver();
+
+      filter.type = "highpass";
+      filter.frequency.setValueAtTime(4200, time);
+      toneFilter.type = "lowpass";
+      toneFilter.frequency.setValueAtTime(8800, time);
+      toneFilter.Q.setValueAtTime(0.5, time);
+      dryGain.gain.setValueAtTime(0.12, time);
+      dryGain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+      wetGain.gain.setValueAtTime(0.16, time);
+      wetGain.gain.exponentialRampToValueAtTime(0.001, time + 0.72);
+      convolver.buffer = getRideReverbBuffer(audio);
+
+      source.connect(filter);
+      filter.connect(dryGain).connect(master);
+      filter.connect(convolver).connect(toneFilter).connect(wetGain).connect(master);
+      source.start(time);
+      source.stop(time + 0.22);
+    }
+
+    async function fetchThumbnailData(url) {
+      if (/^data:image\//i.test(url)) {
+        return resizeImageDataUrl(url);
+      }
+
+      if (!/^https?:\/\//i.test(url)) {
+        throw new Error("Use an http(s) image URL");
+      }
+
+      const dataUrl = await state.adapter.fetchImageDataUrl(url);
+      return resizeImageDataUrl(dataUrl);
+    }
+
+    async function fetchImageDataUrlInBrowser(url) {
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`Image fetch failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) {
+        throw new Error("URL did not return an image");
+      }
+
+      return blobToDataUrl(blob);
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("Could not read image"));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function resizeImageDataUrl(dataUrl) {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      canvas.width = 32;
+      canvas.height = 32;
+      const context = canvas.getContext("2d");
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+
+      const size = Math.min(bitmap.width, bitmap.height);
+      const sx = Math.floor((bitmap.width - size) / 2);
+      const sy = Math.floor((bitmap.height - size) / 2);
+      context.drawImage(bitmap, sx, sy, size, size, 0, 0, 32, 32);
+      bitmap.close();
+      return canvas.toDataURL("image/png");
+    }
+
+    async function preloadRideSample() {
+      if (state.rideSampleBuffer || state.rideSampleLoading || state.rideSampleFailed) {
+        return;
+      }
+
+      state.rideSampleLoading = true;
+      try {
+        const audio = getAudioContext();
+        const arrayBuffer = await state.adapter.loadRideSample();
+        state.rideSampleBuffer = await audio.decodeAudioData(arrayBuffer);
+      } catch (error) {
+        console.warn("Ride sample unavailable; using synthesized ride fallback.", error);
+        state.rideSampleFailed = true;
+      } finally {
+        state.rideSampleLoading = false;
+      }
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const clean = String(base64 || "").replace(/\s+/g, "");
+      const binary = atob(clean);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return bytes.buffer;
+    }
+
+    function getRideReverbBuffer(audio) {
+      if (state.rideReverbBuffer && state.rideReverbBuffer.sampleRate === audio.sampleRate) {
+        return state.rideReverbBuffer;
+      }
+
+      const duration = 0.85;
+      const length = Math.floor(audio.sampleRate * duration);
+      const buffer = audio.createBuffer(2, length, audio.sampleRate);
+      for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+        const data = buffer.getChannelData(channel);
+        for (let index = 0; index < length; index += 1) {
+          const progress = index / length;
+          const shimmer = Math.sin(index * 0.073 + channel) * 0.18;
+          data[index] = (Math.random() * 2 - 1 + shimmer) * Math.pow(1 - progress, 2.4);
+        }
+      }
+      state.rideReverbBuffer = buffer;
+      return buffer;
     }
 
     function createNoise(audio, duration) {
@@ -971,6 +1245,7 @@
         return {
           kind: "app-engine",
           path,
+          samplePath: `${normalizeAppRoot(appEngine.allowedRoot)}/drummachine/ride.b64`,
           async loadStore() {
             try {
               const response = await appEngine.call("readJson", { path });
@@ -984,6 +1259,18 @@
           },
           async saveStore(store) {
             await appEngine.call("writeJson", { path, data: normalizeStore(store) });
+          },
+          async loadRideSample() {
+            const response = await appEngine.call("readText", { path: this.samplePath });
+            return base64ToArrayBuffer(response?.content || "");
+          },
+          async fetchImageDataUrl(url) {
+            const response = await appEngine.call("fetchDataUrl", {
+              url,
+              maxBytes: 5 * 1024 * 1024,
+              allowedMimePrefix: "image/",
+            });
+            return response?.dataUrl || "";
           },
         };
       }
@@ -1001,6 +1288,14 @@
         async saveStore(store) {
           localStorage.setItem(STORE_KEY, JSON.stringify(normalizeStore(store)));
         },
+        async loadRideSample() {
+          const response = await fetch("ride.mp3");
+          if (!response.ok) {
+            throw new Error(`Ride sample failed to load: ${response.status}`);
+          }
+          return response.arrayBuffer();
+        },
+        fetchImageDataUrl: fetchImageDataUrlInBrowser,
       };
     }
 
@@ -1093,6 +1388,8 @@
         name,
         bpm: DEFAULT_BPM,
         length: DEFAULT_LENGTH,
+        thumbnailUrl: "",
+        thumbnailData: "",
         tracks: tracks || emptyTracks(DEFAULT_LENGTH),
         createdAt: now,
         updatedAt: now,
@@ -1105,6 +1402,7 @@
         tracks.hat[index] = index % 2 === 1 ? 1 : 0;
         tracks.kick[index] = index % 4 === 0 ? 1 : 0;
         tracks.snare[index] = index % 8 === 4 ? 1 : 0;
+        tracks.ghostSnare[index] = index % 8 === 3 || index % 8 === 6 ? 1 : 0;
         tracks.ride[index] = index % 4 === 2 ? 1 : 0;
       }
       tracks.crash[0] = 1;
@@ -1134,12 +1432,14 @@
       if (!pattern || typeof pattern !== "object") {
         return null;
       }
-      const length = clamp(Number.parseInt(pattern.length, 10) || DEFAULT_LENGTH, 8, 32);
+      const length = clamp(Number.parseInt(pattern.length, 10) || DEFAULT_LENGTH, MIN_LENGTH, MAX_LENGTH);
       const normalized = {
         id: typeof pattern.id === "string" && pattern.id ? pattern.id : createId(),
         name: cleanText(pattern.name, "Untitled Pattern"),
         bpm: clamp(Number.parseInt(pattern.bpm, 10) || DEFAULT_BPM, 40, 240),
         length,
+        thumbnailUrl: typeof pattern.thumbnailUrl === "string" ? pattern.thumbnailUrl : "",
+        thumbnailData: isImageDataUrl(pattern.thumbnailData) ? pattern.thumbnailData : "",
         tracks: emptyTracks(length),
         createdAt: Number.isFinite(pattern.createdAt) ? pattern.createdAt : Date.now(),
         updatedAt: Number.isFinite(pattern.updatedAt) ? pattern.updatedAt : Date.now(),
@@ -1167,6 +1467,10 @@
     function cleanText(value, fallback) {
       const text = typeof value === "string" ? value.trim() : "";
       return text || fallback;
+    }
+
+    function isImageDataUrl(value) {
+      return typeof value === "string" && /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(value);
     }
 
     function clamp(value, min, max) {

@@ -1,2 +1,4 @@
 sing the plugin at .obsidian/plugins/obsidian-app-engine, build a single-page html app, with inline CSS and javascript, that runs inside Obsidian and uses a single "state.json" file to save its state, under Apps/drummachine/{index.html,state.json}. Use obsidian's background color #1e1e1e and a dark theme. make a simple drum machine app that allows to save patterns of hat, kick, snare, crash, ride with a selectable loop length and bpm. each pattern can be given a name and saved in a searchable sidebar. the patterns should be playable at their configured bpm with a line scrolling horizontally over the pattern.
 in that same folder add a file drumapp.md with the app-engine block.
+
+(note: this was just the initial prompt. the index.html included here was refined through more)
