@@ -1,4 +1,4 @@
-const { Plugin, normalizePath, TFile } = require("obsidian");
+const { Plugin, normalizePath, TFile, requestUrl } = require("obsidian");
 
 const APP_NAMESPACE = "obsidian-app-engine";
 const DEFAULT_ALLOWED_ROOT = "Apps";
@@ -176,6 +176,52 @@ module.exports = class AppEnginePlugin extends Plugin {
     return { path: normalized, removed: true };
   }
 
+  async fetchDataUrl(args = {}) {
+    const rawUrl = typeof args.url === "string" ? args.url.trim() : "";
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      throw new Error("fetchDataUrl requires an http(s) URL.");
+    }
+
+    const maxBytes = Math.max(1, Math.min(Number(args.maxBytes) || 5 * 1024 * 1024, 10 * 1024 * 1024));
+    const allowedMimePrefix = typeof args.allowedMimePrefix === "string" ? args.allowedMimePrefix : "";
+    const response = await requestUrl({
+      url: rawUrl,
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 Obsidian App Engine",
+        "Accept": allowedMimePrefix === "image/" ? "image/*,*/*;q=0.8" : "*/*",
+      },
+    });
+
+    const contentType = this.getHeaderValue(response.headers, "content-type").split(";")[0].trim().toLowerCase();
+    if (allowedMimePrefix && !contentType.startsWith(allowedMimePrefix)) {
+      throw new Error(`URL returned ${contentType || "unknown content type"}, not ${allowedMimePrefix}.`);
+    }
+
+    const bytes = Buffer.from(response.arrayBuffer);
+    if (bytes.byteLength > maxBytes) {
+      throw new Error(`Fetched file is too large (${bytes.byteLength} bytes).`);
+    }
+
+    return {
+      url: rawUrl,
+      contentType: contentType || "application/octet-stream",
+      byteLength: bytes.byteLength,
+      dataUrl: `data:${contentType || "application/octet-stream"};base64,${bytes.toString("base64")}`,
+    };
+  }
+
+  getHeaderValue(headers, name) {
+    const target = name.toLowerCase();
+    for (const [key, value] of Object.entries(headers || {})) {
+      if (key.toLowerCase() === target) {
+        return Array.isArray(value) ? String(value[0] ?? "") : String(value ?? "");
+      }
+    }
+
+    return "";
+  }
+
   async handleMessageEvent(event) {
     const payload = event?.data;
     if (!this.isSupportedRequest(payload)) {
@@ -223,6 +269,8 @@ module.exports = class AppEnginePlugin extends Plugin {
         return this.removePath(args.path, embedOptions);
       case "ensureFolder":
         return this.ensureFolder(args.path, embedOptions);
+      case "fetchDataUrl":
+        return this.fetchDataUrl(args);
       case "ping":
         return {
           ok: true,

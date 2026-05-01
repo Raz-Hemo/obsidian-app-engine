@@ -113,6 +113,7 @@ Supported commands:
 - `list`
 - `remove`
 - `ensureFolder`
+- `fetchDataUrl`
 
 ## Notes
 
