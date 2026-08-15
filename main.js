@@ -224,6 +224,13 @@ module.exports = class AppEnginePlugin extends Plugin {
 
   async handleMessageEvent(event) {
     const payload = event?.data;
+    if (this.isSupportedResize(payload)) {
+      const frameContext = this.getEventFrameContext(event);
+      if (frameContext?.autoHeight) {
+        this.applyAutoHeight(frameContext, payload.height);
+      }
+      return;
+    }
     if (!this.isSupportedRequest(payload)) {
       return;
     }
@@ -287,6 +294,60 @@ module.exports = class AppEnginePlugin extends Plugin {
     return payload?.namespace === APP_NAMESPACE && payload?.type === `${APP_NAMESPACE}:request`;
   }
 
+  isSupportedResize(payload) {
+    return payload?.namespace === APP_NAMESPACE && payload?.type === `${APP_NAMESPACE}:resize`;
+  }
+
+  isAutoHeight(value) {
+    return ["auto", "content", "fit", "fit-content"].includes(String(value ?? "").trim().toLowerCase());
+  }
+
+  applyAutoHeight(frameContext, requestedHeight) {
+    const height = Math.ceil(Number(requestedHeight));
+    if (!Number.isFinite(height) || height < 1 || !frameContext?.iframe?.isConnected) {
+      return;
+    }
+
+    const boundedHeight = Math.min(50000, height);
+    if (Math.abs((frameContext.lastAutoHeight || 0) - boundedHeight) < 1) {
+      return;
+    }
+    frameContext.lastAutoHeight = boundedHeight;
+    frameContext.iframe.style.height = `${boundedHeight}px`;
+  }
+
+  setupSameOriginAutoHeight(frameContext) {
+    frameContext.autoHeightObserver?.disconnect();
+    frameContext.autoHeightObserver = null;
+
+    try {
+      const document = frameContext.iframe.contentDocument;
+      const body = document?.body;
+      if (!body) {
+        return;
+      }
+
+      document.documentElement.classList.add("app-engine-auto-height");
+      const measure = () => {
+        const bodyRect = body.getBoundingClientRect();
+        const childBottom = Array.from(body.children).reduce((bottom, child) => {
+          const rect = child.getBoundingClientRect();
+          return Math.max(bottom, rect.bottom - bodyRect.top);
+        }, 0);
+        this.applyAutoHeight(frameContext, Math.max(body.offsetHeight, bodyRect.height, childBottom));
+      };
+
+      const Observer = document.defaultView?.ResizeObserver || window.ResizeObserver;
+      if (Observer) {
+        frameContext.autoHeightObserver = new Observer(measure);
+        frameContext.autoHeightObserver.observe(body);
+      }
+      measure();
+    } catch (error) {
+      // Cross-origin vault resources report their height through postMessage instead.
+    }
+  }
+
   getEventFrameContext(event) {
     if (!event?.source || !this.iframeContexts?.has(event.source)) {
       return null;
@@ -333,13 +394,22 @@ module.exports = class AppEnginePlugin extends Plugin {
         loading: "lazy",
       },
     });
+    const autoHeight = this.isAutoHeight(config.params.height);
     iframe.style.width = config.params.width ? String(config.params.width) : "100%";
-    iframe.style.height = config.params.height ? String(config.params.height) : "600px";
+    iframe.style.height = autoHeight ? "600px" : (config.params.height ? String(config.params.height) : "600px");
     iframe.style.border = config.params.border ? String(config.params.border) : "0";
+    if (autoHeight) {
+      iframe.style.display = "block";
+      iframe.style.overflow = "hidden";
+      iframe.setAttribute("scrolling", "no");
+    }
 
     const frameContext = {
       iframe,
       embedOptions,
+      autoHeight,
+      autoHeightObserver: null,
+      lastAutoHeight: 0,
       expectedOrigin: this.getOrigin(resolvedSrc),
       targetOrigin: this.getTargetOrigin(resolvedSrc),
     };
@@ -351,8 +421,12 @@ module.exports = class AppEnginePlugin extends Plugin {
           type: `${APP_NAMESPACE}:context`,
           allowedRoot: embedOptions.allowedRoot,
           prettyPrintJson: embedOptions.prettyPrintJson,
+          autoHeight,
           params: embedOptions.params,
         }, frameContext.targetOrigin);
+        if (autoHeight) {
+          window.requestAnimationFrame(() => this.setupSameOriginAutoHeight(frameContext));
+        }
       }
     });
 
